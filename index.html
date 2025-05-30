@@ -76,6 +76,11 @@
         .hidden {
             display: none;
         }
+        .error-message {
+            color: #ef4444; /* Red color for error messages */
+            font-weight: 600;
+            margin-top: 10px;
+        }
 
         /* Responsive adjustments */
         @media (max-width: 768px) {
@@ -101,7 +106,7 @@
             <img id="generatedImage" src="" alt="Generated Image" class="hidden">
             <p id="initialMessage" class="text-gray-500">Your image will appear here.</p>
         </div>
-    </div>
+        <p id="errorMessage" class="error-message hidden"></p> </div>
 
     <script>
         document.getElementById('generateImageBtn').addEventListener('click', async () => {
@@ -109,10 +114,12 @@
             const loadingSpinner = document.getElementById('loadingSpinner');
             const generatedImage = document.getElementById('generatedImage');
             const initialMessage = document.getElementById('initialMessage');
+            const errorMessage = document.getElementById('errorMessage'); // Get the error message element
 
-            // Show loading spinner and hide previous content
+            // Clear previous messages and show loading spinner
             initialMessage.classList.add('hidden');
             generatedImage.classList.add('hidden');
+            errorMessage.classList.add('hidden'); // Hide any previous error messages
             loadingSpinner.classList.remove('hidden');
             generateImageBtn.disabled = true; // Disable button during generation
 
@@ -129,6 +136,12 @@
                     body: JSON.stringify(payload)
                 });
 
+                // Check if the response was successful (status code 2xx)
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorData.error ? errorData.error.message : 'Unknown error'}`);
+                }
+
                 const result = await response.json();
 
                 if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
@@ -136,14 +149,16 @@
                     generatedImage.src = imageUrl;
                     generatedImage.classList.remove('hidden');
                 } else {
-                    console.error('Image generation failed or response structure is unexpected:', result);
-                    initialMessage.textContent = 'Failed to generate image. Please try again.';
-                    initialMessage.classList.remove('hidden');
+                    // Handle cases where the response structure is unexpected or content is missing
+                    console.error('Image generation failed: Unexpected response structure or missing content.', result);
+                    errorMessage.textContent = 'Failed to generate image: Unexpected API response.';
+                    errorMessage.classList.remove('hidden');
                 }
             } catch (error) {
+                // Catch network errors or errors thrown from the response.ok check
                 console.error('Error generating image:', error);
-                initialMessage.textContent = 'An error occurred. Please check your network connection and try again.';
-                initialMessage.classList.remove('hidden');
+                errorMessage.textContent = `An error occurred: ${error.message || 'Please check your network connection and try again.'}`;
+                errorMessage.classList.remove('hidden');
             } finally {
                 loadingSpinner.classList.add('hidden');
                 generateImageBtn.disabled = false; // Re-enable button
